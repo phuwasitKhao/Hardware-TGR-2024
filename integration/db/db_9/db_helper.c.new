@@ -1,0 +1,98 @@
+#include "db_helper.h"
+#include <stdio.h>
+#include <sqlite3.h>
+#include <string.h>
+#include <stdlib.h>
+
+const char INIT_SQL_CMD[] = "CREATE TABLE IF NOT EXISTS data_cmd ("
+                            "_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                            "cmd VARCHAR(255), "
+                            "timestamp DATETIME DEFAULT (DATETIME('now', 'localtime'))"
+                            ");";
+
+const char APPEND_SQL_CMD[] = "INSERT INTO data_cmd (cmd) VALUES (?)";
+const char QUERY_SQL_CMD[] = "SELECT cmd FROM data_cmd ORDER BY timestamp DESC";
+
+// Function to initialize the database
+void dbase_init_9(const char *db_name) {
+    sqlite3 *db;
+
+    if (sqlite3_open(db_name, &db) != SQLITE_OK) {
+        fprintf(stderr, "Error opening %s database\n", db_name);
+        sqlite3_close(db);
+        return;
+    }
+    if (sqlite3_exec(db, INIT_SQL_CMD, NULL, NULL, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Error executing %s: %s\n", INIT_SQL_CMD, sqlite3_errmsg(db)); 
+        return;
+    }
+    sqlite3_close(db);
+}
+
+// Function to append a new command to the database
+void dbase_append_9(const char *db_name, const char *cmd) {
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_open(db_name, &db) != SQLITE_OK) {
+        fprintf(stderr, "Error opening %s database: %s\n", db_name, sqlite3_errmsg(db));
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db, APPEND_SQL_CMD, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Error preparing APPEND_SQL_CMD: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return -1;
+    }
+
+    // Bind the cmd text to the SQL statement
+    sqlite3_bind_text(stmt, 1, cmd, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        fprintf(stderr, "Error executing statement: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        sqlite3_close(db);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    printf("Command appended: %s\n", cmd);
+    return 0;
+}
+
+// Function to query all data from the database and return results in data array
+int dbase_query_9(const char *db_name, char *data) {
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int count = 0;
+
+    if (sqlite3_open(db_name, &db) != SQLITE_OK) {
+        fprintf(stderr, "Error opening %s database: %s\n", db_name, sqlite3_errmsg(db));
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db, QUERY_SQL_CMD, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Error preparing QUERY_SQL_CMD: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return -1;
+    }
+
+    // Retrieve each row and store it in the data array
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW && count < 256) {
+        const char *cmd = (const char *)sqlite3_column_text(stmt, 0);
+        if (cmd) {
+            data[count] = strdup(cmd);  // Copy each result to data array
+            count++;
+        }
+    }
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Error retrieving data: %s\n", sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return count;  // Return the number of records retrieved
+}

@@ -9,7 +9,7 @@
 
 // function prototypes
 void dbase_init(const char *db_name);
-int dbase_append(const char *db_name, int value);
-int dbase_query(const char *db_name);
+int dbase_append(const char *db_name, double value);  // Update to match the double type
+double dbase_query(const char *db_name);
 
 #endif // DB_HELPER_H
