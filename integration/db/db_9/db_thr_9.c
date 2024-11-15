@@ -14,13 +14,13 @@ extern char shared_message[256];          // Shared message buffer
 void *db_9_cmd_thr(char *ptr[]) {
     printf("Starting database SQLite thread\n");
 
-    char db_name[] = "db_9.db";
+    char db_name[] = "logs_9.db";
 
     // Initialize the database and create the logs table if it doesn't exist
-    if (dbase_init(db_name, "CREATE TABLE IF NOT EXISTS logs ("
-                          "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                          "timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')), "
-                          "details VARCHAR(255))") != 0) {
+    if (dbase_init(db_name, "CREATE TABLE IF NOT EXISTS logs (\
+                          id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                          details VARCHAR(255), \
+                          timestamp DATETIME DEFAULT (DATETIME('now', 'localtime')))")) {
         fprintf(stderr, "Failed to initialize database: %s\n", db_name);
         return NULL;
     }
@@ -42,6 +42,7 @@ void *db_9_cmd_thr(char *ptr[]) {
         if (dbase_append(db_name, "logs", mes) != 0) {
             fprintf(stderr, "Failed to append message to database: %s\n", mes);
         }
+        
     }
 
     return NULL;  // Proper return for a pthread function with `void *` return type

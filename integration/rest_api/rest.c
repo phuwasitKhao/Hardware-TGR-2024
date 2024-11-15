@@ -205,9 +205,6 @@ void download_file(const char *attach_id)
   curl_global_cleanup();
 }
 
-int main()
-{
-  // upload_Sound("../output_0.wav");
-  download_file("10");
-  return 0;
-}
+// int main(void ){
+//     download_file("10");
+// }

@@ -45,11 +45,10 @@ void *alsa_thr_fcn(void *ptr) {
 			fprintf (stderr, "read from audio interface failed (%s)\n", snd_strerror (err));
 			break;
 		}
-		pthread_mutex_lock(&data_cond_mutex);
+		pthread_mutex_lock(&audio_cond_mutex);
 		memcpy(shared_buf, buf, 4096*sizeof(short));
-        pthread_cond_signal(&data_cond);
-		printf("Sending data\n");
-		pthread_mutex_unlock(&data_cond_mutex);
+        pthread_cond_signal(&audio_cond);
+		pthread_mutex_unlock(&audio_cond_mutex);
 	} 
 	snd_pcm_close(capture_handle);
 	snd_pcm_hw_params_free(hw_params);

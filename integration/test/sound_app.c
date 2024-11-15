@@ -4,7 +4,7 @@
 #include <alsa/asoundlib.h>
 #include "../db/db_1/db_helper.h"
 
-#define DB_NAME "../db/db_1/logs.db" // Define the database file path
+#define DB_NAME "../db/db_1/logs.db"
 
 int main(int argc, char *argv[])
 {
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 		printf("Average sound value: %.6f\n", avg_val);
 
 		// Print a line of dashes if avg_val > 28000
-		if (avg_val > 28000)
+		if (avg_val > 20)
 		{
 			printf("-----------------------------------------------------------\n");
 		}

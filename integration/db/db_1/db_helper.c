@@ -3,13 +3,13 @@
 // Private constants
 const char INIT_SQL_CMD[] = "CREATE TABLE IF NOT EXISTS data_table (\
     _id INTEGER PRIMARY KEY AUTOINCREMENT, \
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, \
-    value REAL \
-)";
+    value FLOAT, \
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP \
+);";
 
 const char APPEND_SQL_CMD[] = "INSERT INTO data_table (value) VALUES (?)";
 
-const char QUERY_SQL_CMD[] = "SELECT value FROM data_table ORDER BY timestamp DESC LIMIT 1";
+const char QUERY_SQL_CMD[] = "SELECT _id,value,timestamp FROM data_table ORDER BY timestamp DESC LIMIT 1";
 
 // Initialize database
 void dbase_init(const char *db_name)
@@ -88,7 +88,16 @@ double dbase_query(const char *db_name)
 
     if (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        last_value = sqlite3_column_double(stmt, 0); // Get the double value
+        int id = sqlite3_column_int(stmt, 0);                          // ดึงค่า _id
+        double value = sqlite3_column_double(stmt, 1);                 // ดึงค่า value
+        const unsigned char *timestamp = sqlite3_column_text(stmt, 2); // ดึงค่า timestamp
+
+        printf("Query Results:\n");
+        printf("ID | Timestamp           | Timestamp        | Filename\n");
+        // printf("-----------------------------------------------------\n");
+
+        printf("%d | %.2f              | %s        ", id, value, timestamp); // แสดงผลตามลำดับที่ต้องการ
+        last_value = value;                                                   // คืนค่า value ถ้าต้องการใช้ต่อ
     }
 
     sqlite3_finalize(stmt);

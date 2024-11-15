@@ -66,6 +66,15 @@ int dbase_append(const char *db_name, const char *table_name, const char *detail
     return 0;
 }
 
+int dbase_append_with_size(const char *db_name, const char *table_name, const char *file, int file_size)
+{
+    char details[512];                                            // สร้างข้อความรวม `file` และ `file_size`
+    snprintf(details, sizeof(details), "%s|%d", file, file_size); // รวมข้อมูลด้วย `|` หรือรูปแบบอื่น
+
+    // ใช้ `dbase_append` ที่มีอยู่เพื่อบันทึกข้อมูลในรูปแบบข้อความ
+    return dbase_append(db_name, table_name, details);
+}
+
 // Query data from a database
 int dbase_query(const char *db_name, const char *query_sql)
 {

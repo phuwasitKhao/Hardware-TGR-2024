@@ -9,7 +9,7 @@ LIBS = -lm -lsqlite3
 TARGET = db_app
 
 # Source files and object files
-SRCS = db_app.c db_helper.c
+SRCS = db_app.c db_helper.c db_thr.c
 OBJS = $(SRCS:.c=.o)
 
 # Default target to build the application

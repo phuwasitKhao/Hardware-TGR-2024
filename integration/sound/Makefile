@@ -3,14 +3,14 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 
 # Libraries to link
-LIBS = -lm -lasound
+LIBS = -lm -lasound -lsqlite3
 
 # Target application name
 TARGET = sound_app
 
 # Source files and object files
 # SRCS = sound_app.c abs.c alsa_thr.c FFTImplementationCallback.c fft_thr.c rtGetInf.c rtGetNaN.c rt_nonfinite.c sound_freq.c sound_freq_initialize.c sound_freq_terminate.c
-SRCS = sound_app.c fft_thr.c alsa_thr.c sound_freq_last.c rt_nonfinite.c FFTImplementationCallback.c abs.c
+SRCS = sound_app.c fft_thr.c alsa_thr.c sound_freq_last.c rt_nonfinite.c FFTImplementationCallback.c abs.c 
 OBJS = $(SRCS:.c=.o)
 
 # Default target to build the application

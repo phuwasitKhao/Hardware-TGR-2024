@@ -9,7 +9,7 @@ LIBS = -lm -lcurl
 TARGET = rest_app
 
 # Source files and object files
-SRCS = rest.c
+SRCS = rest_thr.c
 OBJS = $(SRCS:.c=.o)
 
 # Default target to build the application
