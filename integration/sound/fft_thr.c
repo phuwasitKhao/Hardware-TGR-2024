@@ -57,7 +57,7 @@ void *fft_thr_fcn(void *ptr)
     //                     "id INTEGER PRIMARY KEY AUTOINCREMENT, "
     //                     "file TEXT, "
     //                     "time DATETIME DEFAULT (DATETIME('now', 'localtime')));");
-
+    
     // setup
     time(&now);
     timeinfo = localtime(&now);
@@ -102,14 +102,15 @@ void *fft_thr_fcn(void *ptr)
                 printf("------------------------------------------------------------\n");
                 sound_detected = true; // Start recording
             }
+            pthread_mutex_unlock(&audio_cond_mutex);
         }
-        pthread_mutex_unlock(&audio_cond_mutex);
         // Name the file for recording audio
-        snprintf(filename, sizeof(filename), "output_%d_%s.wav", file_count++, asctime(timeinfo));
+        char timestamp[64];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", timeinfo);
+        snprintf(filename, sizeof(filename), "/home/coekku/workshop/integration/output/output_%d_%s.wav", file_count++, timestamp);
 
         // Reset samples_written for each new file
         samples_written = 0;
-        printf("test");
         while (samples_written < ONE_MINUTE_SAMPLES)
 
         {
@@ -147,7 +148,7 @@ void *fft_thr_fcn(void *ptr)
         pthread_mutex_lock(&rest_cond_mutex);
         strcpy(shared_message_sw, filename);
         pthread_cond_signal(&rest_cond);
-        pthread_cond_wait(&audio_cond, &audio_cond_mutex);
+        pthread_mutex_unlock(&rest_cond_mutex);
         // dbase_append(DB_NAME, db_name, filename);
         int file_size = get_file_size(filename);
         if (file_size < 0)
@@ -179,8 +180,6 @@ void *fft_thr_fcn(void *ptr)
         // {
         //     printf("Failed to log value to database\n");
         // }
-        pthread_mutex_unlock(&rest_cond_mutex);
-
         printf("File %s saved successfully.\n", filename);
     }
 

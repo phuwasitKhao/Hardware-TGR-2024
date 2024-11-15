@@ -28,7 +28,7 @@ short share_freq[2048];
 char shared_message[256];
 char shared_message_sw[256];
 char shared_name_ouput_file[256];
-char shared_predict[20];
+// int shared_predict = 0;
 
 
 int main(int argc, char *argv[])
@@ -44,26 +44,27 @@ int main(int argc, char *argv[])
     pthread_cond_init(&audio_cond, NULL);
 
     // Initialize threads
+    pthread_create(&alsa_thr, NULL, alsa_thr_fcn, "plughw:2,0");
+    pthread_create(&fft_thr, NULL, fft_thr_fcn, (void *)argv[1]);
+    pthread_create(&rest_thr, NULL, rest_thr_fcn, (void *)argv[2]);
+    pthread_create(&predict_thr, NULL, predict_thread, NULL);
     pthread_create(&mqtt_thr_sub, NULL, mqtt_thr_fcn_sub, (void *)argv[2]);
-    pthread_create(&print_thr, NULL, message_print, (void *)argv[2]);
+    // pthread_create(&print_thr, NULL, message_print, (void *)argv[2]);
     pthread_create(&db_9_thr, NULL, db_9_cmd_thr, (void *)argv[2]);
     pthread_create(&db_1_thr, NULL, db_1_cmd_thr, (void *)argv[2]);
-    pthread_create(&rest_thr, NULL, rest_thr_fcn, (void *)argv[2]);
-    pthread_create(&alsa_thr, NULL, alsa_thr_fcn, "plughw:3,0");
-    pthread_create(&fft_thr, NULL, fft_thr_fcn, (void *)argv[1]);
     pthread_create(&mqtt_thr_pub, NULL, mqtt_thr_fcn, (void *)argv[2]);
-    pthread_create(&predict_thr, NULL, predict_thread, NULL);
     pthread_create(&mqtt_fre_data, NULL, mqtt_thr_fcn_freq, "test");
 
     // Wait for all threads to finish
+    pthread_join(alsa_thr, NULL);
+    pthread_join(fft_thr, NULL);
     pthread_join(rest_thr, NULL);
-    pthread_join(print_thr, NULL);
+    // pthread_join(print_thr, NULL);
     pthread_join(mqtt_thr_pub, NULL);
     pthread_join(mqtt_thr_sub, NULL);
     pthread_join(db_9_thr, NULL);
     pthread_join(db_1_thr, NULL);
-    pthread_join(alsa_thr, NULL);
-    pthread_join(fft_thr, NULL);
+    pthread_join(mqtt_fre_data, NULL);
     pthread_join(predict_thr, NULL);
 
     // Terminate the prediction model

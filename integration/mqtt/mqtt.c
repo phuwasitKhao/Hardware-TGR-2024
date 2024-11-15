@@ -3,16 +3,14 @@
 #include <MQTTClient.h>
 #include <pthread.h>
 #include <string.h>
-#include <unistd.h>  // For sleep()
-#include <cjson/cJSON.h>  // Ensure cJSON is included for JSON handling
+#include <unistd.h>      // For sleep()
+#include <cjson/cJSON.h> // Ensure cJSON is included for JSON handling
 
 // Private constants
 const char base_topic[] = "topgun/project/%s";
 const char MQTT_BROKER[] = "tcp://185.84.161.188:1884";
 const char MQTT_CLIENTID[] = "pi_5";
 const char MQTT_CLIENTID_sub[] = "pi_5_sub";
-
-
 
 // Assuming `shared_message`, `data_cond`, `data_cond_mutex` etc. are declared globally
 // extern pthread_mutex_t data_cond_mutex;
@@ -31,7 +29,7 @@ int messageArrived(void *context, char *topicName, int topicLen, MQTTClient_mess
 
     // Lock mutex, update shared_message, then broadcast to waiting threads
     pthread_mutex_lock(&data_cond_mutex);
-    printf("Message arrived on topic %s: %s\n", topicName, message_d);   
+    printf("Message arrived on topic %s: %s\n", topicName, message_d);
     strncpy(shared_message, message_d, sizeof(shared_message) - 1);
     shared_message[sizeof(shared_message) - 1] = '\0';
     pthread_cond_signal(&data_cond);
@@ -47,26 +45,9 @@ int messageArrived(void *context, char *topicName, int topicLen, MQTTClient_mess
 
     return 1;
 }
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <MQTTClient.h>
-#include <cjson/cJSON.h>
-
-// Prediction results shared variables
-extern char shared_predict[20];
-extern pthread_mutex_t predict_mutex;
-extern pthread_cond_t predict_cond;
-
-#define MQTT_BROKER "tcp://your-broker-address:1883" // Replace with your broker's address
-#define MQTT_CLIENTID "your_client_id"
-#define MQTT_TOPIC "topgun/predict_kku"
-#define USERNAME "changerzaryx"
-#define PASSWORD "cn16022547"
-
 // Function to publish prediction results
-void *mqtt_thr_fcn(char *ptr[256]) {
+void *mqtt_thr_fcn(char *ptr[256])
+{
     printf("Starting MQTT prediction publishing thread\n");
 
     // Setup MQTT client
@@ -78,43 +59,56 @@ void *mqtt_thr_fcn(char *ptr[256]) {
     MQTTClient_create(&mqtt_client, MQTT_BROKER, MQTT_CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
-    conn_opts.username = USERNAME;
-    conn_opts.password = PASSWORD;
+    conn_opts.username = "changerzaryx";
+    conn_opts.password = "cn16022547";
 
-    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        printf("Failed to connect, return code %d\n", rc);
+    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+    {
+        printf("Failed to connect to MQTT broker, return code %d\n", rc);
         exit(EXIT_FAILURE);
     }
 
-    printf("Connected to MQTT broker, publishing to topic: %s\n", MQTT_TOPIC);
+    printf("Connected to MQTT broker, publishing to topic: predict\n");
 
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
 
-    while (1) {
+    while (1)
+    {
         // Wait for prediction result update
         pthread_mutex_lock(&predict_mutex);
         pthread_cond_wait(&predict_cond, &predict_mutex);
 
         // Capture the prediction result
-        int position = 70;  // Example position value
-        int prediction = 78;  // Example prediction value
-        printf("Publishing prediction: Position = %d, Prediction = %d\n", position, prediction);
+        int prediction = 0;
+        prediction = shared_predict;   // Use shared variable for prediction
+
+        pthread_mutex_unlock(&predict_mutex);
+
+        // Get the current timestamp
+        time_t now = time(NULL);
+        struct tm *timeinfo = localtime(&now);
+        char timestamp[64];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H:%M:%S", timeinfo);
+
 
         // Format prediction data into JSON
         cJSON *json = cJSON_CreateObject();
-        cJSON_AddNumberToObject(json, "position", position);
+        cJSON_AddStringToObject(json, "time", timestamp);
         cJSON_AddNumberToObject(json, "prediction", prediction);
 
-        char *json_payload = cJSON_Print(json);
+        char *json_payload = cJSON_PrintUnformatted(json);
         pubmsg.payload = json_payload;
         pubmsg.payloadlen = strlen(json_payload);
         pubmsg.qos = 0;
         pubmsg.retained = 0;
 
         // Publish to MQTT topic
-        if ((rc = MQTTClient_publishMessage(mqtt_client, MQTT_TOPIC, &pubmsg, &token)) == MQTTCLIENT_SUCCESS) {
-            printf("Published to %s: %s\n", MQTT_TOPIC, json_payload);
-        } else {
+        if ((rc = MQTTClient_publishMessage(mqtt_client, "topgun/predict_kku", &pubmsg, &token)) == MQTTCLIENT_SUCCESS)
+        {
+            printf("Published to topic: topgun/predict_kku, Message: %s\n", json_payload);
+        }
+        else
+        {
             printf("Failed to publish message, return code %d\n", rc);
         }
 
@@ -122,15 +116,16 @@ void *mqtt_thr_fcn(char *ptr[256]) {
         cJSON_Delete(json);
         free(json_payload);
 
-        pthread_mutex_unlock(&predict_mutex);
-        sleep(1);  // Adjust the sleep duration based on your prediction frequency
+        // Sleep to control publishing frequency (if needed)
+        usleep(100000); // Sleep for 100ms to reduce CPU usage
     }
 
+    // Disconnect and clean up MQTT client
     MQTTClient_disconnect(mqtt_client, 10000);
     MQTTClient_destroy(&mqtt_client);
+
     return NULL;
 }
-
 
 void *mqtt_thr_fcn_freq(char *ptr[256])
 {
@@ -142,24 +137,26 @@ void *mqtt_thr_fcn_freq(char *ptr[256])
     MQTTClient mqtt_client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     MQTTClient_deliveryToken token;
-    
+
     MQTTClient_create(&mqtt_client, MQTT_BROKER, MQTT_CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
     conn_opts.username = "changerzaryx";
     conn_opts.password = "cn16022547";
 
-    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
+    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+    {
         printf("Failed to connect, return code %d\n", rc);
         exit(EXIT_FAILURE);
     }
 
-    snprintf(topic, sizeof(topic), "topgun/data");  // Set topic to 'topgun/data'
+    snprintf(topic, sizeof(topic), "topgun/data"); // Set topic to 'topgun/data'
     printf("MQTT TOPIC: %s\n", topic);
 
     MQTTClient_message pubmsg = MQTTClient_message_initializer;
 
-    while (1) {
+    while (1)
+    {
         // Lock, copy data to a local buffer, and unlock
         pthread_mutex_lock(&audio_cond_mutex);
         short buffer_copy[2048];
@@ -168,7 +165,7 @@ void *mqtt_thr_fcn_freq(char *ptr[256])
 
         // Convert buffer to JSON format
         cJSON *json = cJSON_CreateObject();
-        cJSON *data_array = cJSON_CreateIntArray(buffer_copy, 2048);  // Serialize buffer
+        cJSON *data_array = cJSON_CreateIntArray(buffer_copy, 2048); // Serialize buffer
 
         cJSON_AddItemToObject(json, "data", data_array);
 
@@ -179,9 +176,12 @@ void *mqtt_thr_fcn_freq(char *ptr[256])
         pubmsg.retained = 0;
 
         // Publish to MQTT
-        if ((rc = MQTTClient_publishMessage(mqtt_client, topic, &pubmsg, &token)) == MQTTCLIENT_SUCCESS) {
-            printf("Published to %s: %s\n", topic, json_payload);
-        } else {
+        if ((rc = MQTTClient_publishMessage(mqtt_client, topic, &pubmsg, &token)) == MQTTCLIENT_SUCCESS)
+        {
+            printf("Published to %s\n", topic);
+        }
+        else
+        {
             printf("Failed to publish message, return code %d\n", rc);
         }
 
@@ -189,16 +189,13 @@ void *mqtt_thr_fcn_freq(char *ptr[256])
         cJSON_Delete(json);
         free(json_payload);
 
-        sleep(1);  // Adjust sleep time as needed for update rate
+        sleep(1); // Adjust sleep time as needed for update rate
     }
 
     MQTTClient_disconnect(mqtt_client, 10000);
     MQTTClient_destroy(&mqtt_client);
     return NULL;
 }
-
-
-
 
 void *mqtt_thr_fcn_sub(void *ptr)
 {
@@ -217,13 +214,15 @@ void *mqtt_thr_fcn_sub(void *ptr)
     conn_opts.password = "cn16022547";
     MQTTClient_setCallbacks(mqtt_client, NULL, NULL, messageArrived, NULL);
 
-    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
+    if ((rc = MQTTClient_connect(mqtt_client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+    {
         printf("Failed to connect, return code %d\n", rc);
         exit(EXIT_FAILURE);
     }
 
-    snprintf(topic, sizeof(topic), base_topic, "#");  // Subscribe to all subtopics under base_topic
-    if ((rc = MQTTClient_subscribe(mqtt_client, topic, 0)) != MQTTCLIENT_SUCCESS) {
+    snprintf(topic, sizeof(topic), base_topic, "#"); // Subscribe to all subtopics under base_topic
+    if ((rc = MQTTClient_subscribe(mqtt_client, topic, 0)) != MQTTCLIENT_SUCCESS)
+    {
         printf("Failed to subscribe, return code %d\n", rc);
         MQTTClient_disconnect(mqtt_client, 10000);
         MQTTClient_destroy(&mqtt_client);
@@ -232,8 +231,9 @@ void *mqtt_thr_fcn_sub(void *ptr)
     printf("Subscribed to topic: %s\n", topic);
 
     // Keep the subscriber running
-    while (1) {
-        sleep(1);  // Sleep to allow messageArrived to handle messages
+    while (1)
+    {
+        sleep(1); // Sleep to allow messageArrived to handle messages
     }
 
     // Cleanup
@@ -249,7 +249,8 @@ int get_mem_free()
     char *tmp_buf;
     int mem_free_size = 0;
 
-    if ((fh = fopen("/proc/meminfo", "r")) == NULL) {
+    if ((fh = fopen("/proc/meminfo", "r")) == NULL)
+    {
         perror("Error opening /proc/meminfo");
         return -1;
     }
@@ -259,10 +260,13 @@ int get_mem_free()
     buf[sizeof(buf) - 1] = '\0';
 
     tmp_buf = strtok(buf, "\n ");
-    while (tmp_buf) {
-        if (strcmp(tmp_buf, "MemFree:") == 0) {
+    while (tmp_buf)
+    {
+        if (strcmp(tmp_buf, "MemFree:") == 0)
+        {
             tmp_buf = strtok(NULL, "\n ");
-            if (tmp_buf) {
+            if (tmp_buf)
+            {
                 mem_free_size = atoi(tmp_buf);
                 break;
             }
@@ -274,16 +278,26 @@ int get_mem_free()
     return mem_free_size;
 }
 
-void check_database(const char *message) {
-    if (strcmp(message, "db01") == 0) {
+void check_database(const char *message)
+{
+    if (strcmp(message, "db01") == 0)
+    {
         message = "db_01.db";
-    } else if (strcmp(message, "db02") == 0) {
+    }
+    else if (strcmp(message, "db02") == 0)
+    {
         message = "db_02.db";
-    } else if (strcmp(message, "db06") == 0) {
+    }
+    else if (strcmp(message, "db06") == 0)
+    {
         message = "db_06.db";
-    } else if (strcmp(message, "db09") == 0) {
-        message =  "db_09.db";
-    } else {
+    }
+    else if (strcmp(message, "db09") == 0)
+    {
+        message = "db_09.db";
+    }
+    else
+    {
         printf("Message does not match any known database\n");
         return NULL; // Return NULL to indicate no match
     }

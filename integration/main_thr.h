@@ -30,7 +30,7 @@ extern char shared_message_hw[256];      // Store the shared message here
 extern char shared_message_sw[256];      // Store the shared message here
 extern char shared_message_project[256]; // Store the shared message here
 extern char shared_name_ouput_file[256];
-extern char shared_predict[20];
+extern int shared_predict;
 // extern int shared_detect = 0;
 extern short shared_buf[];
 

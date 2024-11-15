@@ -10,32 +10,37 @@
 
 void *rest_thr_fcn(void *ptr)
 {
-    printf("Starting REST thread\n");
-    char message[256];
+  printf("Starting REST thread\n");
+  char message[256];
 
-    while (1)
+  while (1)
+  {
+    // Wait for the shared message to be updated
+    pthread_mutex_lock(&rest_cond_mutex);
+    pthread_cond_wait(&rest_cond, &rest_cond_mutex);
+    strcpy(message, shared_message_sw);
+    pthread_mutex_unlock(&rest_cond_mutex);
+
+    // Print the message
+    printf("REST: %s\n", message);
+
+    if (strncmp(message, "id", 2) == 0)
+    { // Check if message starts with "id"
+      // Extract the ID part starting from the third character
+      const char *id = &message[2];
+      download_file(id); // Pass the ID to the download function
+    }else
     {
-        // Wait for the shared message to be updated
-        pthread_mutex_lock(&rest_cond_mutex);
-        pthread_cond_wait(&rest_cond, &rest_cond_mutex);
-        strcpy(message, shared_message_sw);
-        pthread_mutex_unlock(&rest_cond_mutex);
-
-        // Print the message
-        printf("REST: %s\n", message);
-
-        if (strcmp(message, "output_") == 0) {
-            upload_Sound(message);
-        } 
-        else if (strncmp(message, "id", 2) == 0) { // Check if message starts with "id"
-            // Extract the ID part starting from the third character
-            const char *id = &message[2];
-            download_file(id); // Pass the ID to the download function
-        }
+      upload_Sound(message); // Upload the sound file
     }
+    
+  }
+  {
+    printf("Note work: %s\n", message);
+  }
 }
 
-void upload_Sound(char *filename)
+void upload_Sound(char filename[256])
 {
   CURL *curl;
   CURLcode res;
@@ -96,48 +101,69 @@ void upload_Sound(char *filename)
   curl_global_cleanup();
 }
 // Helper function to determine the file extension based on the Content-Type
-const char* get_file_extension(const char *content_type) {
-    // Check if content_type is NULL
-    if (content_type == NULL) {
-        return "";
+const char *get_file_extension(const char *content_type)
+{
+  // Check if content_type is NULL
+  if (content_type == NULL)
+  {
+    return "";
+  }
+
+  // Find the position of '/'
+  const char *slash = strchr(content_type, '/');
+  if (slash && *(slash + 1) != '\0')
+  {
+    // Allocate memory for the extension and prepend a dot
+    char *extension = malloc(strlen(slash)); // Enough space for dot + subtype
+    if (extension == NULL)
+    {
+      return ""; // Return empty string if memory allocation fails
     }
 
-    // Find the position of '/'
-    const char *slash = strchr(content_type, '/');
-    if (slash && *(slash + 1) != '\0') {
-        // Allocate memory for the extension and prepend a dot
-        char *extension = malloc(strlen(slash)); // Enough space for dot + subtype
-        if (extension == NULL) {
-            return ""; // Return empty string if memory allocation fails
-        }
+    // Copy the subtype part with a dot prefix
+    snprintf(extension, strlen(slash), ".%s", slash + 1);
 
-        // Copy the subtype part with a dot prefix
-        snprintf(extension, strlen(slash), ".%s", slash + 1);
-
-        // Convert specific subtypes to correct extensions if needed
-        if (strcmp(extension, ".jpeg") == 0) {
-            strcpy(extension, ".jpg"); // Use .jpg for JPEG images
-        } else if (strcmp(extension, ".plain") == 0) {
-            strcpy(extension, ".txt"); // Use .txt for plain text files
-        } else if (strcmp(extension, ".x-csrc") == 0) {
-            strcpy(extension, ".c"); // Use .c for C source code
-        } else if (strcmp(extension, ".octet-strea") == 0) {
-            strcpy(extension, ".mat"); // Use .m for MATLAB files
-        } else if (strcmp(extension, ".x-python") == 0) {
-            strcpy(extension, ".py"); // Use .py for Python files
-        } else if (strcmp(extension, ".x-sh") == 0) {
-            strcpy(extension, ".sh"); // Use .sh for shell scripts
-        } else if (strcmp(extension, ".x-yaml") == 0) {
-            strcpy(extension, ".yaml"); // Use .yaml for YAML files
-        } else if (strcmp(extension, ".x-zip-compressed") == 0) {
-            strcpy(extension, ".zip"); // Use .zip for ZIP archives
-        } else if (strcmp(extension, ".pd") == 0) {
-            strcpy(extension, ".pdf"); // Use .docx for Word documents
-        } 
-        return extension;
+    // Convert specific subtypes to correct extensions if needed
+    if (strcmp(extension, ".jpeg") == 0)
+    {
+      strcpy(extension, ".jpg"); // Use .jpg for JPEG images
     }
+    else if (strcmp(extension, ".plain") == 0)
+    {
+      strcpy(extension, ".txt"); // Use .txt for plain text files
+    }
+    else if (strcmp(extension, ".x-csrc") == 0)
+    {
+      strcpy(extension, ".c"); // Use .c for C source code
+    }
+    else if (strcmp(extension, ".octet-strea") == 0)
+    {
+      strcpy(extension, ".mat"); // Use .m for MATLAB files
+    }
+    else if (strcmp(extension, ".x-python") == 0)
+    {
+      strcpy(extension, ".py"); // Use .py for Python files
+    }
+    else if (strcmp(extension, ".x-sh") == 0)
+    {
+      strcpy(extension, ".sh"); // Use .sh for shell scripts
+    }
+    else if (strcmp(extension, ".x-yaml") == 0)
+    {
+      strcpy(extension, ".yaml"); // Use .yaml for YAML files
+    }
+    else if (strcmp(extension, ".x-zip-compressed") == 0)
+    {
+      strcpy(extension, ".zip"); // Use .zip for ZIP archives
+    }
+    else if (strcmp(extension, ".pd") == 0)
+    {
+      strcpy(extension, ".pdf"); // Use .docx for Word documents
+    }
+    return extension;
+  }
 
-    return ""; // Return empty if format is unknown
+  return ""; // Return empty if format is unknown
 }
 
 // Callback function to capture the Content-Type header
@@ -213,7 +239,6 @@ void download_file(const char *attach_id)
         {
           fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         }
-       
 
         // Close the file
         fclose(fp);

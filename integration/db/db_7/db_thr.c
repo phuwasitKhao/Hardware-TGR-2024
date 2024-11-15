@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
-
+// #include "../main_thr.h"
 // Shared data and mutexes
 extern short shared_buf[9600];
 extern pthread_mutex_t audio_cond_mutex;
 extern pthread_cond_t audio_cond;
-char shared_predict[20];
+extern int shared_predict = 0;
 
 // Database file path
 const char *DB_PATH = "logs_7.db";
@@ -89,9 +89,17 @@ void *predict_thread(void *ptr) {
             // Display prediction results
             if (position == 70) {
                 printf("F detected\n");
+                pthread_mutex_lock(&predict_mutex);
+                shared_predict = 70;
+                pthread_cond_signal(&predict_cond);
+                pthread_mutex_unlock(&predict_mutex);
             }
             if (prediction == 78) {
                 printf("N detected\n");
+                pthread_mutex_lock(&predict_mutex);
+                shared_predict = 78;
+                pthread_cond_signal(&predict_cond);
+                pthread_mutex_unlock(&predict_mutex);
             }
         }
     }
